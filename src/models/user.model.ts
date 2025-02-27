@@ -1,6 +1,5 @@
 import pool from '../utils/db';
 import { AppError } from '../utils/errorHandlers';
-import bcrypt from 'bcryptjs';
 import { QueryResult } from 'pg';
 
 /**
@@ -17,8 +16,7 @@ import { QueryResult } from 'pg';
  *       properties:
  *         uid:
  *           type: string
- *           format: uuid
- *           description: ID único do usuário (gerado pelo banco de dados)
+ *           description: ID único do usuário (gerado pelo firebase)
  *         name:
  *           type: string
  *           description: Nome do usuário
@@ -59,15 +57,20 @@ import { QueryResult } from 'pg';
  *           type: string
  *           enum: [email, google.com, facebook.com, phone, github.com, custom]
  *           description: Provedor de autenticação do usuário
- *         password:
- *           type: string
- *           description: Senha do usuário (hashed, presente apenas no banco de dados, nunca retornado na API)
  *         role:
  *           type: string
  *           enum: [admin, user, resident]
  *           description: Papel do usuário (admin, user, resident)
+ *         entry_date:
+ *           type: string
+ *           format: date-time
+ *           description: Data de entrada na republica.
+ *         departure_date:
+ *           type: string
+ *           format: date-time
+ *           description: Data de saida da republica.
  *       example:
- *          uid: "a1b2c3d4-e5f6-7890-1234-567890abcdef"
+ *          uid: "abcdef1234567890"
  *          name: "João da Silva"
  *          email: "joao.silva@example.com"
  *          phone_number: "+5511999999999"
@@ -80,6 +83,8 @@ import { QueryResult } from 'pg';
  *          firebase_uid: "abcdef1234567890"
  *          provider: "email"
  *          role: "user"
+ *          entry_date: "2023-10-27T12:00:00Z"
+ *          departure_date: "2024-10-27T12:00:00Z"
  *
  *     UserCreate:  # Schema separado para a criação do usuário (sem uid, created_at, etc.)
  *      allOf:
@@ -90,9 +95,6 @@ import { QueryResult } from 'pg';
  *            - firebase_uid
  *            - provider
  *          properties:
- *            password:
- *              type: string
- *              description:  Senha do usuário. Opcional, pois o usuário pode se registrar com outro provider.
  *            role:
  *              type: string
  *              enum: [admin, user, resident]
@@ -134,12 +136,19 @@ import { QueryResult } from 'pg';
  *          type: string
  *          enum: [admin, user, resident]
  *          description: Papel do usuário (admin, user, resident).
+ *        entry_date:
+ *           type: string
+ *           format: date-time
+ *           description: Data de entrada na republica.
+ *        departure_date:
+ *           type: string
+ *           format: date-time
+ *           description: Data de saida da republica.
  */
 
 // Interface para representar um usuário (TypeScript)
 export interface User {
-  id(id: any, arg1: string): unknown;
-  uid?: string; // Opcional para criação (gerado automaticamente)
+  uid: string;
   name: string;
   email: string;
   phone_number?: string;
@@ -151,18 +160,18 @@ export interface User {
   status?: 'active' | 'inactive' | 'banned';
   firebase_uid: string;
   provider: 'email' | 'google.com' | 'facebook.com' | 'phone' | 'github.com' | 'custom';
-  password?: string;
   role?: 'admin' | 'user' | 'resident'; // Enum inline
+  entry_date?: Date;
+  departure_date?: Date;
 }
 
 
 export const createUser = async (userData: User): Promise<User> => {
-  const { name, email, phone_number, profile_picture_url, firebase_uid, provider, password, current_republic_id, is_admin, status, role } = userData;
-  const hashedPassword = password ? await bcrypt.hash(password, 12) : null;
+  const { uid, name, email, phone_number, profile_picture_url, firebase_uid, provider, current_republic_id, is_admin, status, role, entry_date, departure_date} = userData;
 
   const query = `
-    INSERT INTO public."user" (name, email, phone_number, profile_picture_url, firebase_uid, provider, password, current_republic_id, is_admin, status, role)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+    INSERT INTO "user" ( name, email, phone_number, profile_picture_url, firebase_uid, provider, current_republic_id, is_admin, status, role, entry_date, departure_date)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12 )
     RETURNING *;
   `;
   const existingUser = await getUserByFirebaseUID(firebase_uid);
@@ -170,7 +179,7 @@ export const createUser = async (userData: User): Promise<User> => {
       throw new AppError('Firebase UID already exists', 409);
   }
   try {
-    const result: QueryResult<User> = await pool.query(query, [name, email, phone_number, profile_picture_url, firebase_uid, provider, hashedPassword, current_republic_id, is_admin, status, role]);
+    const result: QueryResult<User> = await pool.query(query, [name, email, phone_number, profile_picture_url, firebase_uid, provider, current_republic_id, is_admin, status, role, entry_date, departure_date]);
     return result.rows[0];
   } catch (error: any) { //  <--  'any' aqui é importante
     if (error.code === '23505') { // Código de erro do PostgreSQL para UNIQUE constraint violation
@@ -184,7 +193,7 @@ export const createUser = async (userData: User): Promise<User> => {
 };
 
 
-export const getAllUsers = async (): Promise<User[]> => {
+export const getAlluser = async (): Promise<User[]> => {
   const result = await pool.query('SELECT * FROM "user"');
   return result.rows;
 };
@@ -233,16 +242,51 @@ export const updateUser = async (uid: string, updates: Partial<User>): Promise<U
 };
 
 export const deleteUser = async (uid: string): Promise<void> => {
-  const result = await pool.query('DELETE FROM "user" WHERE uid = $1', [uid]);
+  const result = await pool.query('DELETE FROM user WHERE uid = $1', [uid]);
   if (result.rowCount === 0) {
     throw new AppError('User not found', 404);
   }
 };
 
-//Função para verificar a senha
-export const verifyPassword = async (inputPassword: string, hashedPassword: string | null | undefined): Promise<boolean> => {
-  if (!hashedPassword) {
-    return false;
+/**
+ * Atualiza a república atual de um usuário
+ * @param uid - ID único do usuário
+ * @param republicId - ID da república (ou null para remover o usuário de qualquer república)
+ * @returns O usuário atualizado
+ */
+export const updateUserRepublic = async (uid: string, republicId: string | null): Promise<User> => {
+  try {
+    // Verificar se o usuário existe
+    const user = await getUserById(uid);
+    if (!user) {
+      throw new AppError('User not found', 404);
+    }
+
+    // Atualizar o campo current_republic_id
+    // Se o republicId for null, também definimos is_admin como FALSE para evitar permissões residuais
+    const query = republicId === null 
+      ? `UPDATE "user" SET current_republic_id = NULL, is_admin = FALSE WHERE uid = $1 RETURNING *`
+      : `UPDATE "user" SET current_republic_id = $2 WHERE uid = $1 RETURNING *`;
+
+    const values = republicId === null ? [uid] : [uid, republicId];
+    
+    const result: QueryResult<User> = await pool.query(query, values);
+    
+    // Verificar se a atualização foi bem-sucedida
+    if (result.rowCount === 0) {
+      throw new AppError('Failed to update user republic', 500);
+    }
+
+    return result.rows[0];
+  } catch (error: any) {
+    if (error instanceof AppError) {
+      throw error;
+    }
+    
+    if (error.code === '23503') { // Violação de foreign key
+      throw new AppError('Invalid republic_id', 400);
+    }
+    
+    throw new AppError('Failed to update user republic', 500);
   }
-  return await bcrypt.compare(inputPassword, hashedPassword);
-}
+};

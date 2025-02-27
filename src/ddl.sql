@@ -24,7 +24,7 @@ CREATE TABLE republics (
 );
 
 CREATE TABLE users (
-    uid VARCHAR(255) PRIMARY KEY,
+    uid UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
     phone_number VARCHAR(20),

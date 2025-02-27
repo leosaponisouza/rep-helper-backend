@@ -40,7 +40,6 @@ router.post(
     body('email').isEmail().withMessage('Invalid email').normalizeEmail(),
     body('firebase_uid').notEmpty().withMessage('Firebase UID is required'),
     body('provider').notEmpty().withMessage('Provider is required'),
-    body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long').optional({ checkFalsy: true }), // A senha é opcional, pois pode vir do provedor.
     body('current_republic_id').optional().isUUID().withMessage('Invalid republic ID'),
     body('is_admin').optional().isBoolean().withMessage('is_admin must be a boolean'),
     body('status').optional().isIn(['active', 'inactive', 'banned']).withMessage('Invalid status value'),

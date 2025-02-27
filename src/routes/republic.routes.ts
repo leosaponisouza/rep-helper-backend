@@ -207,6 +207,56 @@ router.put('/:id',
   ],
   republicController.updateRepublic
 );
-
+/**
+ * @swagger
+ * /republics/join/{code}:
+ *   post:
+ *     summary: Entrar em uma república usando o código de convite
+ *     tags: [Republics]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: code
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Código da república
+ *     responses:
+ *       200:
+ *         description: Entrou na república com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 token:
+ *                   type: string
+ *                   description: JWT token atualizado
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     user:
+ *                       $ref: '#/components/schemas/User'
+ *       400:
+ *         description: Erro de validação ou usuário já é membro da república
+ *       401:
+ *         description: Não autenticado
+ *       404:
+ *         description: República não encontrada
+ *       500:
+ *         description: Erro interno do servidor
+ */
+router.post(
+    '/join/:code', 
+    authMiddleware.protect,
+    [
+        param('code').notEmpty().withMessage('Republic code is required')
+    ],
+    republicController.joinRepublicByCode
+);
 
 export default router;

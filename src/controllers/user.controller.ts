@@ -6,7 +6,7 @@ import bcrypt from 'bcryptjs';
 import { QueryResult } from 'pg';
 import * as userModel from '../models/user.model'; // Importe o modelo
 import { validationResult } from 'express-validator';
-import { User } from '../models/user.model'; // Importe a interface User
+import { getAlluser, User } from '../models/user.model'; // Importe a interface User
 
 
 // Interface estendida para o Request, para incluir informações do usuário autenticado.
@@ -28,11 +28,11 @@ export const createUser = async (req: Request, res: Response, next: NextFunction
         }
 
         const newUser = await userModel.createUser(req.body);
-        const { password, ...userData } = newUser; // Removendo a senha antes de enviar a resposta
+       
         res.status(201).json({
             status: 'success',
             data: {
-                user: userData, //Retorna todos os dados menos a senha
+                user: newUser, //Retorna todos os dados menos a senha
             },
         });
     } catch (error) {
@@ -43,18 +43,14 @@ export const createUser = async (req: Request, res: Response, next: NextFunction
 // --- getAllUsers ---
 export const getAllUsers = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const users = await userModel.getAllUsers();
+        const users = await getAlluser()
         // Removendo a senha de todos os usuários antes de enviar a resposta
-        const usersWithoutPassword = users.map(user => {
-            const { password, ...userData } = user;
-            return userData;
-        });
 
         res.status(200).json({
             status: 'success',
-            results: usersWithoutPassword.length,
+            results: users.length,
             data: {
-                users: usersWithoutPassword,
+                users: users,
             },
         });
     } catch (error) {
@@ -70,11 +66,10 @@ export const getUserById = async (req: Request, res: Response, next: NextFunctio
             return next(new AppError('User not found', 404));
         }
 
-        const { password, ...userData } = user; // Removendo a senha antes de enviar
         res.status(200).json({
             status: 'success',
             data: {
-                user: userData, // Envia os dados do usuario sem a senha
+                user: user, // Envia os dados do usuario sem a senha
             },
         });
     } catch (error) {
@@ -89,11 +84,10 @@ export const getUserByFirebaseUID = async (req: Request, res: Response, next: Ne
         if (!user) {
             return next(new AppError('User not found', 404));
         }
-        const {password, ...userData} = user;
         res.status(200).json({
             status: 'success',
             data: {
-                user: userData, //Envia os dados do usuario sem a senha
+                user: user, //Envia os dados do usuario sem a senha
             },
         });
     } catch (error) {
@@ -125,11 +119,10 @@ export const updateUser = async (req: Request, res: Response, next: NextFunction
         }
 
         const updatedUser = await userModel.updateUser(req.params.id, req.body);
-        const {password, ...userData} = updatedUser // Removendo a senha antes de enviar.
         res.status(200).json({
             status: 'success',
             data: {
-                user: userData, //Envia os dados do usuário sem a senha.
+                user: updatedUser, //Envia os dados do usuário sem a senha.
             },
         });
     } catch (error) {
@@ -164,12 +157,10 @@ export const getMe = async (req: AuthenticatedRequest, res: Response, next: Next
         if (!user) {
             return next(new AppError('Usuário não encontrado.', 404));
         }
-
-        const { password, ...userData } = user; // Remove a senha
         res.status(200).json({
             status: 'success',
             data: {
-                user: userData,
+                user: user,
             },
         });
     } catch (error) {

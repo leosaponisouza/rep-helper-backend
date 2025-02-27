@@ -4,7 +4,7 @@ import * as republicModel from '../models/republic.model';
 import * as userModel from '../models/user.model'; // Importa userModel
 import { AppError } from '../utils/errorHandlers';
 import { validationResult } from 'express-validator';
-import { signToken } from '../middleware/auth.middleware'; // Importa signToken
+import { refreshToken, signToken } from '../middleware/auth.middleware'; // Importa signToken
 import { User } from '../models/user.model';
 
 // Interface estendida para o Request (como no authMiddleware)
@@ -42,8 +42,6 @@ export const createRepublic = async (req: AuthenticatedRequest, res: Response, n
         // Gerar um novo token JWT (com os dados atualizados)
         const token = signToken(updatedUser.uid!, updatedUser.role || 'user');
 
-        //Removendo a senha
-        const { password, ...userData } = updatedUser;
 
         // Retorna os dados da república E os dados atualizados do usuário (SEM A SENHA)
         res.status(201).json({
@@ -51,7 +49,7 @@ export const createRepublic = async (req: AuthenticatedRequest, res: Response, n
             token, // <-- RETORNA O NOVO TOKEN
             data: {
                 republic: newRepublic,
-                user: userData, // <-- RETORNA OS DADOS ATUALIZADOS DO USUÁRIO
+                user: updatedUser, // <-- RETORNA OS DADOS ATUALIZADOS DO USUÁRIO
             },
         });
 
@@ -167,6 +165,66 @@ export const deleteRepublic = async (req: AuthenticatedRequest, res: Response, n
         await republicModel.deleteRepublic(req.params.id);
         res.status(204).send(); // 204 No Content
 
+    } catch (error) {
+        next(error);
+    }
+};
+/**
+ * Controller para permitir que um usuário entre em uma república usando o código de convite
+ */
+
+export const joinRepublicByCode = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const code = req.params.code;
+        
+        // Verificar se o código existe e não é undefined
+        if (!code) {
+            return next(new AppError('Republic code is required', 400));
+        }
+
+        // Obter o usuário autenticado
+        const authenticatedUser = (req as AuthenticatedRequest).user;
+
+        if (!authenticatedUser) {
+            return next(new AppError('User not authenticated', 401));
+        }
+
+        // Buscar a república pelo código - garantindo que code é string
+        const republic = await republicModel.getRepublicByCode(code);
+        
+        if (!republic) {
+            return next(new AppError('Republic not found with this code', 404));
+        }
+
+        // Verificar se o usuário já está nessa república
+        const user = await userModel.getUserById(authenticatedUser.uid);
+        if (!user) {
+            return next(new AppError('User not found', 404));
+        }
+        
+        if (user.current_republic_id === republic.id) {
+            return next(new AppError('You are already a member of this republic', 400));
+        }
+
+        // Garantir que republic.id não é undefined antes de passar para updateUserRepublic
+        const republicId = republic.id;
+        if (!republicId) {
+            return next(new AppError('Republic has no valid ID', 500));
+        }
+
+        // Atualizar o usuário associando-o à república
+        const updatedUser = await userModel.updateUserRepublic(authenticatedUser.uid, republicId);
+        
+        // Gerar novo token JWT usando a função existente do middleware
+        const token = signToken(updatedUser.uid!, updatedUser.role || 'user');
+
+        res.status(200).json({
+            status: 'success',
+            token,
+            data: {
+                user: updatedUser,
+            },
+        });
     } catch (error) {
         next(error);
     }

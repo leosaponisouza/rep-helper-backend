@@ -165,7 +165,7 @@ const generateRepublicCode = async (): Promise<string> => {
     const code = await generateRepublicCode();
   
     const query = `
-          INSERT INTO republic (name, street, number, complement, neighborhood, city, state, zip_code, owner_id, code)
+          INSERT INTO republics (name, street, number, complement, neighborhood, city, state, zip_code, owner_id, code)
           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
           RETURNING *;
       `;
@@ -192,21 +192,30 @@ const generateRepublicCode = async (): Promise<string> => {
   };
   
   export const getAllRepublics = async (): Promise<Republic[]> => {
-    const result = await pool.query('SELECT * FROM republic');
+    const result = await pool.query('SELECT * FROM republics');
     return result.rows;
   };
   
   export const getRepublicById = async (id: string): Promise<Republic | null> => {
-    const result: QueryResult<Republic> = await pool.query('SELECT * FROM republic WHERE id = $1', [id]);
+    const result: QueryResult<Republic> = await pool.query('SELECT * FROM republics WHERE id = $1', [id]);
     return result.rows[0] || null;
   };
   
   export const getRepublicByCode = async (code: string): Promise<Republic | null> => {
-    const query = `SELECT * FROM republic WHERE code = $1`;
-    const result: QueryResult<Republic> = await pool.query(query, [code]);
-    return result.rows[0] || null;
-  }
-  
+    try {
+      // Garantimos que code é uma string válida
+      if (!code) {
+        return null;
+      }
+      
+      const query = `SELECT * FROM republics WHERE code = $1`;
+      const result: QueryResult<Republic> = await pool.query(query, [code]);
+      
+      return result.rows[0] || null; // Retorna null se não encontrar
+    } catch (error: any) {
+      throw new AppError('Error finding republic', 500);
+    }
+  };
   export const updateRepublic = async (id: string, updates: Partial<Republic>): Promise<Republic> => {
     const updateFields = Object.keys(updates)
       .filter(key => updates[key as keyof Republic] !== undefined)
@@ -218,7 +227,7 @@ const generateRepublicCode = async (): Promise<string> => {
     }
   
     const query = `
-        UPDATE republic
+        UPDATE republics
         SET ${updateFields}
         WHERE id = $1
         RETURNING *;
@@ -245,7 +254,7 @@ const generateRepublicCode = async (): Promise<string> => {
     //Desassociar os usuários da república, antes de deletar
     await pool.query('UPDATE "user" SET current_republic_id = NULL, is_admin = FALSE WHERE current_republic_id = $1', [id]);
   
-    const result = await pool.query('DELETE FROM republic WHERE id = $1', [id]);
+    const result = await pool.query('DELETE FROM republics WHERE id = $1', [id]);
   
     if (result.rowCount === 0) {
       throw new AppError('Republic not found', 404);

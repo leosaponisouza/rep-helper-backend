@@ -72,13 +72,11 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
       // 4. Atualizar o last_login do usuário (boa prática).
       await userModel.updateUser(user.uid!, { last_login: new Date() });
 
-      // 5. Enviar resposta (com o token e dados do usuário - SEM A SENHA).
-      const { password: userPassword, ...userData } = user;  // Remove a senha
       res.status(200).json({
           status: 'success',
           token, // <-- Token JWT do *SEU* backend
           data: {
-              user: userData, // <-- Dados do usuário (sem a senha)
+              user: user, // <-- Dados do usuário (sem a senha)
           },
       });
 
