@@ -18,23 +18,3 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-
-// Opcionalmente, você pode armazenar as credenciais em variáveis de ambiente também
-// ou usar um sistema mais seguro de gerenciamento de secrets
-async function getToken() {
-  try {
-    // Email e senha podem vir de variáveis de ambiente ou de outro lugar seguro
-    const email = process.env.FIREBASE_AUTH_EMAIL || "sleo028@gmail.com";
-    const password = process.env.FIREBASE_AUTH_PASSWORD || "teste123";
-    
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    const token = await userCredential.user.getIdToken();
-    console.log(token); // Imprime o token no console
-    return token;
-  } catch (error) {
-    console.error("Erro ao obter token:", error);
-    return null; // Ou tratar o erro de outra forma
-  }
-}
-
-getToken();
