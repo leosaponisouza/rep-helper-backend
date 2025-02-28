@@ -7,7 +7,7 @@ import { QueryResult } from 'pg';
 import * as userModel from '../models/user.model'; // Importe o modelo
 import { validationResult } from 'express-validator';
 import { getAlluser, User } from '../models/user.model'; // Importe a interface User
-
+import { signToken } from '../middleware/auth.middleware'; // Importar signToken
 
 // Interface estendida para o Request, para incluir informações do usuário autenticado.
 interface AuthenticatedRequest extends Request {
@@ -28,9 +28,13 @@ export const createUser = async (req: Request, res: Response, next: NextFunction
         }
 
         const newUser = await userModel.createUser(req.body);
+        
+        // Gerar token JWT para o novo usuário
+        const token = signToken(newUser.uid!, newUser.role || 'user');
        
         res.status(201).json({
             status: 'success',
+            token, // Incluir o token na resposta
             data: {
                 user: newUser, //Retorna todos os dados menos a senha
             },
@@ -119,12 +123,32 @@ export const updateUser = async (req: Request, res: Response, next: NextFunction
         }
 
         const updatedUser = await userModel.updateUser(req.params.id, req.body);
-        res.status(200).json({
-            status: 'success',
-            data: {
-                user: updatedUser, //Envia os dados do usuário sem a senha.
-            },
-        });
+        
+        // Verificar se houve alteração em campos que podem afetar permissões (como role)
+        // Se for o próprio usuário alterando seu perfil, ou se campos críticos foram alterados, gerar novo token
+        const isOwnProfile = authenticatedUser?.uid === req.params.id;
+        const hasPermissionChanges = req.body.role !== undefined || req.body.current_republic_id !== undefined;
+        
+        if (isOwnProfile || hasPermissionChanges) {
+            // Gerar novo token com os dados atualizados
+            const token = signToken(updatedUser.uid!, updatedUser.role || 'user');
+            
+            res.status(200).json({
+                status: 'success',
+                token, // Incluir token atualizado
+                data: {
+                    user: updatedUser, // Envia os dados do usuário sem a senha
+                },
+            });
+        } else {
+            // Caso não precise atualizar o token
+            res.status(200).json({
+                status: 'success',
+                data: {
+                    user: updatedUser,
+                },
+            });
+        }
     } catch (error) {
         next(error);
     }

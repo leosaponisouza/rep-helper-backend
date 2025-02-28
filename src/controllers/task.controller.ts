@@ -1,8 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
-import * as taskModel from '../models/task.model';  // Sem .ts
+import * as taskModel from '../models/task.model';
 import { AppError } from '../utils/errorHandlers';
 import { validationResult } from 'express-validator';
-import { User } from '../models/user.model'; // Importa a interface User
+import { User } from '../models/user.model';
+import { signToken } from '../middleware/auth.middleware'; // Importar signToken
 
 export const createTask = async (req: Request, res: Response, next: NextFunction) => {
   try {

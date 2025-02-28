@@ -1,11 +1,10 @@
+// routes/user.routes.ts
 import express from 'express';
-import * as userController from '../controllers/user.controller'; // Importe com .ts
-import * as authMiddleware from '../middleware/auth.middleware'; // Importe com .ts
+import * as userController from '../controllers/user.controller';
+import * as authMiddleware from '../middleware/auth.middleware';
 import { body } from 'express-validator';
 
 const router = express.Router();
-
-// --- Rotas de Usuário ---
 
 /**
  * @swagger
@@ -43,7 +42,7 @@ router.post(
     body('current_republic_id').optional().isUUID().withMessage('Invalid republic ID'),
     body('is_admin').optional().isBoolean().withMessage('is_admin must be a boolean'),
     body('status').optional().isIn(['active', 'inactive', 'banned']).withMessage('Invalid status value'),
-    body('role').optional().isIn(['admin', 'user', 'resident']).withMessage('Invalid role value'), // Adiciona validação para role
+    body('role').optional().isIn(['admin', 'user', 'resident']).withMessage('Invalid role value'),
   ],
   userController.createUser
 );
@@ -185,11 +184,11 @@ router.put(
   [
     body('name').optional().trim().notEmpty().withMessage('Name cannot be empty'),
     body('email').optional().isEmail().withMessage('Invalid email').normalizeEmail(),
-    body('phone_number').optional().trim().isMobilePhone('any').withMessage('Invalid phone number'), // Validação flexível de telefone
+    body('phone_number').optional().trim().isMobilePhone('any').withMessage('Invalid phone number'),
     body('current_republic_id').optional().isUUID().withMessage('Invalid republic ID'),
     body('is_admin').optional().isBoolean().withMessage('is_admin must be a boolean'),
     body('status').optional().isIn(['active', 'inactive', 'banned']).withMessage('Invalid status value'),
-    body('role').optional().isIn(['admin', 'user', 'resident']).withMessage('Invalid role value'), // Adiciona validação para role
+    body('role').optional().isIn(['admin', 'user', 'resident']).withMessage('Invalid role value'),
   ],
   userController.updateUser
 );
@@ -224,92 +223,6 @@ router.put(
  */
 router.delete('/:id', authMiddleware.protect, userController.deleteUser);
 
-// --- Rotas de Autenticação (Login/Logout) ---
-
-/**
- * @swagger
- * /users/login:
- *  post:
- *      summary: Faz login do usuário (autenticação com Firebase) e retorna um JWT.
- *      tags: [Users]
- *      requestBody:
- *          required: true
- *          content:
- *              application/json:
- *                  schema:
- *                      type: object
- *                      required:
- *                          - email
- *                          - password
- *                      properties:
- *                          email:
- *                              type: string
- *                              format: email
- *                              description: Email do usuário.
- *                          password:
- *                              type: string
- *                              description: Senha do usuário.
- *      responses:
- *          200:
- *              description: Login bem-sucedido. Retorna o token JWT e os dados do usuário.
- *              content:
- *                  application/json:
- *                      schema:
- *                         type: object
- *                         properties:
- *                             status:
- *                                  type: string
- *                                  example: success
- *                             token:
- *                                 type: string
- *                                 description: Token JWT.
- *                             data:
- *                                 type: object
- *                                 properties:
- *                                     user:
- *                                         $ref: '#/components/schemas/User'
- *          400:
- *             description: Dados de entrada inválidos
- *          401:
- *              description: Credenciais inválidas (email ou senha incorretos, ou usuário não encontrado no Firebase).
- *          404:
- *              description: Usuário não encontrado no *banco de dados* (mas encontrado no Firebase).
- *          500:
- *              description: Erro interno do servidor.
- */
-router.post(
-  '/login',
-  authMiddleware.login
-);
-
-/**
-* @swagger
-* /users/refresh-token:
-*   post:
-*     summary: Refreshes the JWT
-*     tags: [Users]
-*     security:
-*       - bearerAuth: []
-*     responses:
-*       200:
-*         description: JWT Refreshed
-*         content:
-*           application/json:
-*             schema:
-*               type: object
-*               properties:
-*                 status:
-*                   type: string
-*                   example: success
-*                 token:
-*                   type: string
-*                   description: New JWT Token
-*       401:
-*         description: Unauthorized, token expired or invalid.
-*       500:
-*         description: Internal Server Error
-*/
-router.post('/refresh-token', authMiddleware.refreshToken);
 /**
  * @swagger
  * /users/me:
@@ -333,4 +246,5 @@ router.post('/refresh-token', authMiddleware.refreshToken);
  *         description: Erro interno do servidor
  */
 router.get('/me', authMiddleware.protect, userController.getMe);
+
 export default router;
