@@ -160,7 +160,7 @@ export interface User {
   status?: 'active' | 'inactive' | 'banned';
   firebase_uid: string;
   provider: 'email' | 'google.com' | 'facebook.com' | 'phone' | 'github.com' | 'custom';
-  role?: 'admin' | 'user' | 'resident'; // Enum inline
+  role: 'admin' | 'user' | 'resident' ; // Enum inline
   entry_date?: Date;
   departure_date?: Date;
 }

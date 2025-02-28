@@ -245,6 +245,6 @@ router.delete('/:id', authMiddleware.protect, userController.deleteUser);
  *       500:
  *         description: Erro interno do servidor
  */
-router.get('/me', authMiddleware.protect, userController.getMe);
+router.get('/me', authMiddleware.protect);
 
 export default router;

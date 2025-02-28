@@ -8,11 +8,7 @@ import { validationResult } from 'express-validator';
 
 // Interface para Request com usuário autenticado
 interface AuthenticatedRequest extends Request {
-  user?: {
-    uid: string;
-    role: string;
-    firebaseUid: string;
-  };
+  user?: userModel.User
 }
 
 // Gerar token JWT
@@ -167,11 +163,7 @@ export const protect = async (req: AuthenticatedRequest, res: Response, next: Ne
     }
     
     // Adicionar informações do usuário à requisição
-    req.user = {
-      uid: currentUser.uid!,
-      role: currentUser.role || 'user',
-      firebaseUid: currentUser.firebase_uid
-    };
+    req.user = currentUser;
     
     next();
   } catch (error) {
